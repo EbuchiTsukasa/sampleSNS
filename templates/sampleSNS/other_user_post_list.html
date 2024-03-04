@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-3">
+    {% for item in object_list %}
+    <div class="alert alert-success" role="alert">
+        <p>タイトル：<a href="#">{{item.title}}</a></p>
+        <p>投稿者：{{item.user.username}}</p>
+        {% if request.user in item.like_set.all %}
+            <a href="{% url 'like_delete' pk=item.pk %}"><p><i class="fas fa-heart text-danger" id="like-for-post-icon"></i>いいね</p></a>
+        {% else %}
+            <p>
+                <!-- <i class="far fa-heart text-danger" id="like-for-post-icon"></i>いいね -->
+                <form method="post" action="{% url 'like_create' pk=item.pk %}">
+                    {% csrf_token %}
+                    <button type="submit"><i class="far fa-heart text-danger" id="like-for-post-icon"></i>いいね</button>
+                </form>                
+            </p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
