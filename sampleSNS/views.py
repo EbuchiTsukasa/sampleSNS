@@ -55,4 +55,3 @@ class LikeDelete(LoginRequiredMixin, View):
         if like:
             like.delete()
         return redirect('other_user_post_list')
-
