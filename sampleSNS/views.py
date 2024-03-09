@@ -39,6 +39,7 @@ class OtherUserPostList(LoginRequiredMixin, ListView):
     # どんなデータをテンプレートに渡すか加工
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # ログインユーザが持ついいねとフォローユーザをあらかじめ取得
         current_user = CustomUser.objects.prefetch_related('likes', 'following').get(pk=self.request.user.pk)
         user_likes = current_user.likes.all()
         context['like_exists'] = {like.target.id: True for like in user_likes}
