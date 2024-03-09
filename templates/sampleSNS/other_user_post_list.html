@@ -3,15 +3,35 @@
 
 {% block content %}
 <div class="container mt-3">
-    {% for item in object_list %}
+    {% for item in post_objects %}
     <div class="alert alert-success" role="alert">
-        <p>タイトル：<a href="#">{{item.title}}</a></p>
-        <p>投稿者：{{item.user.username}}</p>
-        {% if request.user in item.like_set.all %}
-            <a href="{% url 'like_delete' pk=item.pk %}"><p><i class="fas fa-heart text-danger" id="like-for-post-icon"></i>いいね</p></a>
+        <p>タイトル：<a href="#">{{ item.title }}</a></p>
+        <p>内容：{{ item.content }}</p>
+        <p>投稿者：{{item.user.username}}
+            {% if item.user in following_users %}
+                <div>
+                    フォローしています
+                    <form method="post" action="{% url 'unfollow' pk=item.user.pk %}">
+                        {% csrf_token %}
+                        <button>フォローを外す</button>
+                    </form>
+                </div>
+            {% else %}
+                <form method="post" action="{% url 'follow' pk=item.user.pk %}">
+                    {% csrf_token %}
+                    <button>フォローする</button>
+                </form>
+            {% endif %}
+        </p>
+        {% if item.pk in like_exists %}
+            <p>
+                <form method="post" action="{% url 'like_delete' pk=item.pk %}">
+                    {% csrf_token %}
+                    <button type="submit"><i class="fas fa-heart text-danger" id="like-for-post-icon">いいね</i></button>
+                </form>
+            </p>
         {% else %}
             <p>
-                <!-- <i class="far fa-heart text-danger" id="like-for-post-icon"></i>いいね -->
                 <form method="post" action="{% url 'like_create' pk=item.pk %}">
                     {% csrf_token %}
                     <button type="submit"><i class="far fa-heart text-danger" id="like-for-post-icon"></i>いいね</button>
