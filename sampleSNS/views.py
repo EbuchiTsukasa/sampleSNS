@@ -32,15 +32,15 @@ class OtherUserPostList(LoginRequiredMixin, ListView):
     # どんなデータを取得するか変更
     def get_queryset(self):
         queryset = super().get_queryset()
+        # template側のfor文でPostに紐づくUserを何度も取得してしまうので最適化
         queryset = queryset.exclude(user=self.request.user).prefetch_related('user')
         return queryset
     
-    # どんなデータをテンプレートに渡すか加工prefetch
+    # どんなデータをテンプレートに渡すか加工
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         current_user = CustomUser.objects.prefetch_related('likes', 'following').get(pk=self.request.user.pk)
         user_likes = current_user.likes.all()
-        # user_likes = Like.objects.filter(user=self.request.user)
         context['like_exists'] = {like.target.id: True for like in user_likes}
         context['following_users'] = current_user.following.all()
         return context
