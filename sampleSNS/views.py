@@ -1,11 +1,9 @@
-from django.db.models.query import QuerySet
-from django.forms import BaseModelForm
 from .models import CustomUser, Post, Like
 from django.views import View
-from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import render, redirect, get_object_or_404
+from .forms import LikeForm, FollowUnfollowForm
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import ListView, DetailView, CreateView, DeleteView
+from django.views.generic import ListView, CreateView, DeleteView, FormView
 from django.urls import reverse, reverse_lazy
 
 def index(request):
@@ -22,35 +20,52 @@ class MyPost(LoginRequiredMixin, ListView):
     template_name = 'mypost.html'
 
     def get_queryset(self):
-        #自分の投稿に限定
-        return Post.objects.filter(user=self.request.user)
+        queryset = super().get_queryset()
+        queryset = queryset.filter(user=self.request.user)
+        return queryset
 
-# コードレビューの点未修正
 class OtherUserPostList(LoginRequiredMixin, ListView):
     model = Post
     template_name = 'other_user_post_list.html'
+    context_object_name = 'post_objects'
 
+    # どんなデータを取得するか変更
     def get_queryset(self):
-        return Post.objects.exclude(user=self.request.user)
+        queryset = super().get_queryset()
+        queryset = queryset.exclude(user=self.request.user).prefetch_related('user')
+        return queryset
     
+    # どんなデータをテンプレートに渡すか加工prefetch
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user_likes = Like.objects.filter(user=self.request.user)
+        current_user = CustomUser.objects.prefetch_related('likes', 'following').get(pk=self.request.user.pk)
+        user_likes = current_user.likes.all()
+        # user_likes = Like.objects.filter(user=self.request.user)
         context['like_exists'] = {like.target.id: True for like in user_likes}
-        context['user_likes'] = {like.target.id: like for like in user_likes}
-        context['following_users'] = self.request.user.following.all()
+        context['following_users'] = current_user.following.all()
         return context
 
-class LikeCreate(LoginRequiredMixin, CreateView):
-    model = Like
-    fields = []  # フォームに表示するフィールドはなし
+class LikeCreate(LoginRequiredMixin, FormView):
+    template_name = 'other_user_post_list.html'
+    form_class = LikeForm
     success_url = reverse_lazy('other_user_post_list')
 
     def form_valid(self, form):
         target = get_object_or_404(Post, pk=self.kwargs['pk'])
-        form.instance.target = target  # Likeインスタンスのtargetフィールドに代入
-        form.instance.user = self.request.user  # Likeインスタンスのuserフィールドに代入
+        like = Like(target=target, user=self.request.user)
+        like.save()
         return super().form_valid(form)
+
+# class LikeCreate(LoginRequiredMixin, CreateView):
+#     model = Like
+#     fields = []  # フォームに表示するフィールドはなし
+#     success_url = reverse_lazy('other_user_post_list')
+
+#     def form_valid(self, form):
+#         target = get_object_or_404(Post, pk=self.kwargs['pk'])
+#         form.instance.target = target  # Likeインスタンスのtargetフィールドに代入
+#         form.instance.user = self.request.user  # Likeインスタンスのuserフィールドに代入
+#         return super().form_valid(form)
 
 # CreateViewではなく、Viewを継承した場合のコード
 
@@ -82,18 +97,38 @@ class LikeDelete(LoginRequiredMixin, DeleteView):
 #             like.delete()
 #         return redirect('other_user_post_list')
 
-class Follow(LoginRequiredMixin, View):
+# class Follow(LoginRequiredMixin, View):
 
-    def post(self, request, *args, **kwargs):
-        if request.method == 'POST':
-            user_to_follow = CustomUser.objects.get(pk=kwargs['pk'])
-            request.user.following.add(user_to_follow)
-            return HttpResponseRedirect(reverse('other_user_post_list'))
+#     def post(self, request, *args, **kwargs):
+#         if request.method == 'POST':
+#             user_to_follow = CustomUser.objects.get(pk=kwargs['pk'])
+#             request.user.following.add(user_to_follow)
+#             return HttpResponseRedirect(reverse('other_user_post_list'))
         
-class Unfollow(LoginRequiredMixin, View):
+class Follow(LoginRequiredMixin, FormView):
+    template_name = 'other_user_post_list.html'
+    form_class = FollowUnfollowForm
+    success_url = reverse_lazy('other_user_post_list')
 
-    def post(self, request, *args, **kwargs):
-        if request.method == 'POST':
-            user_to_unfollow = CustomUser.objects.get(pk=kwargs['pk'])
-            request.user.following.remove(user_to_unfollow)
-            return HttpResponseRedirect(reverse('other_user_post_list'))
+    def form_valid(self, form):
+        user_to_follow = CustomUser.objects.get(pk=self.kwargs['pk'])
+        self.request.user.following.add(user_to_follow)
+        return super().form_valid(form)
+
+class Unfollow(LoginRequiredMixin, FormView):
+    template_name = 'other_user_post_list.html'
+    form_class = FollowUnfollowForm
+    success_url = reverse_lazy('other_user_post_list')
+
+    def form_valid(self, form):
+        user_to_unfollow = CustomUser.objects.get(pk=self.kwargs['pk'])
+        self.request.user.following.remove(user_to_unfollow)
+        return super().form_valid(form)
+
+# class Unfollow(LoginRequiredMixin, View)
+
+#     def post(self, request, *args, **kwargs):
+#         if request.method == 'POST':
+#             user_to_unfollow = CustomUser.objects.get(pk=kwargs['pk'])
+#             request.user.following.remove(user_to_unfollow)
+#             return HttpResponseRedirect(reverse('other_user_post_list'))

@@ -13,7 +13,7 @@ class CustomUser(AbstractUser):
 class Post(models.Model):
     title = models.CharField(max_length=100)
     content = models.TextField()
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -24,4 +24,4 @@ class Post(models.Model):
 
 class Like(models.Model):
     target = models.ForeignKey(Post, on_delete=models.CASCADE)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='likes')
