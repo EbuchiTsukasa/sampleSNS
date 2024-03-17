@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-3">
+    {% for item in object_list %}
+    <div class="alert alert-success" role="alert">
+        <p>タイトル：<a href="#">{{item.title}}</a></p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
