@@ -8,7 +8,7 @@
         <p>タイトル：<a href="#">{{ item.title }}</a></p>
         <p>内容：{{ item.content }}</p>
         <p>投稿者：{{item.user.username}}
-            {% if item.user in following_users %}
+            {% if item.is_followed %}
                 <div>
                     フォローしています
                     <form method="post" action="{% url 'unfollow' pk=item.user.pk %}">
@@ -23,7 +23,7 @@
                 </form>
             {% endif %}
         </p>
-        {% if item.pk in like_exists %}
+        {% if item.is_liked %}
             <p>
                 <form method="post" action="{% url 'like_delete' pk=item.pk %}">
                     {% csrf_token %}

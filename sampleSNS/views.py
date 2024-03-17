@@ -1,10 +1,15 @@
-from .models import CustomUser, Post, Like
+from .models import Post, Like
 from django.views import View
 from .forms import LikeForm, FollowUnfollowForm
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, DeleteView, FormView
 from django.urls import reverse, reverse_lazy
+from django.contrib.auth import get_user_model
+from django.db.models import Exists, OuterRef
+
+# settings.AUTH_USER_MODELを参照
+User = get_user_model()
 
 def index(request):
     return render(request, "index.html")
@@ -34,17 +39,12 @@ class OtherUserPostList(LoginRequiredMixin, ListView):
         queryset = super().get_queryset()
         # template側のfor文でPostに紐づくUserを何度も取得してしまうので最適化
         queryset = queryset.exclude(user=self.request.user).prefetch_related('user')
+
+        likes = Like.objects.filter(user=self.request.user, target=OuterRef('pk'))
+        following = User.objects.filter(followed_by=self.request.user, id=OuterRef('user'))
+        queryset = queryset.annotate(is_liked=Exists(likes), is_followed=Exists(following))
+
         return queryset
-    
-    # どんなデータをテンプレートに渡すか加工
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # ログインユーザが持ついいねとフォローユーザをあらかじめ取得
-        current_user = CustomUser.objects.prefetch_related('likes', 'following').get(pk=self.request.user.pk)
-        user_likes = current_user.likes.all()
-        context['like_exists'] = {like.target.id: True for like in user_likes}
-        context['following_users'] = current_user.following.all()
-        return context
 
 class LikeCreate(LoginRequiredMixin, FormView):
     template_name = 'other_user_post_list.html'
@@ -102,7 +102,7 @@ class LikeDelete(LoginRequiredMixin, DeleteView):
 
 #     def post(self, request, *args, **kwargs):
 #         if request.method == 'POST':
-#             user_to_follow = CustomUser.objects.get(pk=kwargs['pk'])
+#             user_to_follow = User.objects.get(pk=kwargs['pk'])
 #             request.user.following.add(user_to_follow)
 #             return HttpResponseRedirect(reverse('other_user_post_list'))
         
@@ -112,7 +112,7 @@ class Follow(LoginRequiredMixin, FormView):
     success_url = reverse_lazy('other_user_post_list')
 
     def form_valid(self, form):
-        user_to_follow = CustomUser.objects.get(pk=self.kwargs['pk'])
+        user_to_follow = User.objects.get(pk=self.kwargs['pk'])
         self.request.user.following.add(user_to_follow)
         return super().form_valid(form)
 
@@ -122,7 +122,7 @@ class Unfollow(LoginRequiredMixin, FormView):
     success_url = reverse_lazy('other_user_post_list')
 
     def form_valid(self, form):
-        user_to_unfollow = CustomUser.objects.get(pk=self.kwargs['pk'])
+        user_to_unfollow = User.objects.get(pk=self.kwargs['pk'])
         self.request.user.following.remove(user_to_unfollow)
         return super().form_valid(form)
 
@@ -130,6 +130,6 @@ class Unfollow(LoginRequiredMixin, FormView):
 
 #     def post(self, request, *args, **kwargs):
 #         if request.method == 'POST':
-#             user_to_unfollow = CustomUser.objects.get(pk=kwargs['pk'])
+#             user_to_unfollow = User.objects.get(pk=kwargs['pk'])
 #             request.user.following.remove(user_to_unfollow)
 #             return HttpResponseRedirect(reverse('other_user_post_list'))
